@@ -67,13 +67,9 @@ class OCPInputGenerator():
         if os.path.exists(bulk_path):
             bulk_atoms_obj = read(bulk_path)
         else:
-            bulk_path = os.path.join(self.bulk_path, 'vasprun.xml.gz')
-            if os.path.exists(bulk_path):
-                bulk_atoms_obj = read(bulk_path)
-            else:
-                custodian_suffix = self.get_optimized_suffix_custodian(self.bulk_path)
-                bulk_path = os.path.join(self.bulk_path, 'vasprun.{}.xml.gz'.format(custodian_suffix))
-                bulk_atoms_obj = read(bulk_path)
+            custodian_suffix = self.get_optimized_suffix_custodian(self.bulk_path)
+            bulk_path = os.path.join(self.bulk_path, 'vasprun.xml.{}.gz'.format(custodian_suffix))
+            bulk_atoms_obj = read(bulk_path)
         ocp_bulk = Bulk(bulk_atoms=bulk_atoms_obj)
         return ocp_bulk
             
