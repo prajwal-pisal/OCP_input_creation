@@ -48,13 +48,32 @@ class OCPInputGenerator():
             ads_info['ocp_adsorbate'] = ocp_adsorbate
         return self.adsorbates_info
 
+    def get_optimized_suffix_custodian(path_to_vasp_dir):
+        custodian_file = [file for file in os.listdir(path_to_vasp_dir) if file.startswith("custodian")][0]
+        custodian_file_path = os.path.join(path_to_vasp_dir, custodian_file)
+        if custodian_file_path.endswith('.gz'):
+            with gzip.open(custodian_file_path) as f:
+                custodian_handler = json.load(f)
+        else:
+            with open(custodian_file_path, 'r') as f:
+                custodian_handler = json.load(f) 
+        if custodian_handler[-1]['job']['final']==True:
+            output_tag = custodian_handler[-1]['job']['suffix']
+        return output_tag
+
+    
     def read_bulk_and_create_bulk_obj(self):
         bulk_path = os.path.join(self.bulk_path,'vasprun.xml')
         if os.path.exists(bulk_path):
             bulk_atoms_obj = read(bulk_path)
         else:
             bulk_path = os.path.join(self.bulk_path, 'vasprun.xml.gz')
-            bulk_atoms_obj = read(bulk_path)
+            if os.path.exists(bulk_path):
+                bulk_atoms_obj = read(bulk_path)
+            else:
+                custodian_suffix = self.get_optimized_suffix_custodian(self.bulk_path)
+                bulk_path = os.path.join(self.bulk_path, 'vasprun.{}.xml.gz'.format(custodian_suffix))
+                bulk_atoms_obj = read(bulk_path)
         ocp_bulk = Bulk(bulk_atoms=bulk_atoms_obj)
         return ocp_bulk
             
