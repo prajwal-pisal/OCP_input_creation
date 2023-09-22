@@ -1,7 +1,7 @@
 from ase.io import read, write
 import pickle
 from ocdata.core import Adsorbate, Slab, Bulk, AdsorbateSlabConfig
-import os, gzip
+import os, gzip, json
 import pandas as pd
 
 
@@ -48,7 +48,7 @@ class OCPInputGenerator():
             ads_info['ocp_adsorbate'] = ocp_adsorbate
         return self.adsorbates_info
 
-    def get_optimized_suffix_custodian(path_to_vasp_dir):
+    def get_optimized_suffix_custodian(self, path_to_vasp_dir):
         custodian_file = [file for file in os.listdir(path_to_vasp_dir) if file.startswith("custodian")][0]
         custodian_file_path = os.path.join(path_to_vasp_dir, custodian_file)
         if custodian_file_path.endswith('.gz'):
@@ -68,8 +68,8 @@ class OCPInputGenerator():
             bulk_atoms_obj = read(bulk_path)
         else:
             custodian_suffix = self.get_optimized_suffix_custodian(self.bulk_path)
-            bulk_path = os.path.join(self.bulk_path, 'vasprun.xml.{}.gz'.format(custodian_suffix))
-            bulk_atoms_obj = read(bulk_path)
+            bulk_path = os.path.join(self.bulk_path, 'vasprun.xml{}.gz'.format(custodian_suffix))
+            bulk_atoms_obj = read(bulk_path, format='vasp-xml')
         ocp_bulk = Bulk(bulk_atoms=bulk_atoms_obj)
         return ocp_bulk
             
