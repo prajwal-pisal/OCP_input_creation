@@ -13,22 +13,29 @@ class OCPInputGenerator():
         self.bulk_material_id = bulk_material_id
         self.is_metal = is_metal
         self.save_path = save_path
-        self.adsorbates_info = {'d_H': {"suffix": "-H" ,
+        self.adsorbates_info = {'d_H': {"suffix": "H" ,
                                        "binding_index":[0],
                                         } ,
-                               'd_OH': {"suffix": "-OH",
+                               'd_OH': {"suffix": "OH",
                                        "binding_index":[0],
                                         }, 
-                               'm_CO': {"suffix": "-CO",
+                               'm_CO': {"suffix": "CO",
                                        "binding_index":[0],
                                         },
-                               'd_OCH3':{"suffix": "-OCH3",
+                               'd_OCH3':{"suffix": "OCH3",
                                        "binding_index":[4],
                                         },
-                               'd_OCHO':{"suffix": "-OCHO",
+                               'd_OCHO':{"suffix": "OCHO",
                                        "binding_index":[1],
                                         }
                                }
+        if not self.is_metal:
+            self.adsorbates_info['d_CH3O'] = {"suffix": "CH3O",
+                                              "binding_index": [0]
+                                            }
+            self.adsorbates_info['d_CHO2'] = {"suffix": "CHO2",
+                                            "binding_index": [0] 
+                                            }
         if self.save_path == None:
             self.save_path = os.path.join(os.getcwd(), bulk_material_id)
             os.makedirs(self.save_path, exist_ok=True)
@@ -60,7 +67,6 @@ class OCPInputGenerator():
         if custodian_handler[-1]['job']['final']==True:
             output_tag = custodian_handler[-1]['job']['suffix']
         return output_tag
-
     
     def read_bulk_and_create_bulk_obj(self):
         bulk_path = os.path.join(self.bulk_path,'vasprun.xml')
@@ -93,7 +99,7 @@ class OCPInputGenerator():
             return slab_filename  
         else:
                     
-            adslab_filename = "{}_{}_{}_{}{}_{}.json".format(self.bulk_material_id,
+            adslab_filename = "{}_{}_{}_{}_{}_{}.json".format(self.bulk_material_id,
                                                 miller_str,
                                                 inverted,
                                                 shift, 
@@ -161,5 +167,71 @@ class OCPInputGenerator():
         self.update_adsorbates_info()
         self.create_and_save_all_adslabs()
         return None
+
+
+class BestSurfaces():
+    def __init__(self, path_to_slabs, material_id):
+        self.path_to_slabs = path_to_slabs
+        self.material_id = material_id
+        self.slab_files = self.list_files_of_relaxed_slabs()
+        self.unique_millers = self.get_millers()
+        self.slabs_info_dict = self.sort_slabs_based_on_millers()
+        self.slabs_info_dict = self.get_energies_and_best_surfaces()
+        pass
+
+    def list_files_of_relaxed_slabs(self):
+        slab_files = [file for file in os.listdir(self.path_to_slabs) if self.material_id in file and file.endswith('.traj')]
+        return slab_files
+
+    def get_millers(self):
+        all_millers = list()
+        for slabfile in self.slab_files:
+            miller_string = slabfile.split('_')[2]
+            all_millers.append(miller_string)
+        
+        return list(set(all_millers))
+
+    def sort_slabs_based_on_millers(self):
+        slabs_info_dict = dict()
+        for miller in self.unique_millers:
+            slabs_info_dict[miller] = dict()
+            filtered_list = list()
+            for slab_file in self.slab_files:
+                if miller in slab_file:
+                    filtered_list.append(slab_file)
+            slabs_info_dict[miller]['slabfiles'] = filtered_list
+        return slabs_info_dict
+
+    def get_energies_and_best_surfaces(self):
+        with open(os.path.join(self.path_to_slabs, 'best_surfaces.txt'), 'w') as f:
+            for miller, info in self.slabs_info_dict.items():
+                total_energies = list()
+                energy_per_atom = list()
+                for slabfile in info['slabfiles']:
+                    filepath = os.path.join(self.path_to_slabs, slabfile)
+                    atoms_obj = read(filepath)
+                    toten = atoms_obj.get_potential_energy()
+                    natoms = atoms_obj.get_global_number_of_atoms()
+                    e_per_atom = toten/natoms
+                    total_energies.append(toten)
+                    energy_per_atom.append(e_per_atom)
+                info['total_energies'] = total_energies
+                info['energy_per_atom'] = energy_per_atom
+                min_energy = min(energy_per_atom)
+                info['min_energy'] = min_energy
+                min_energy_surface = info['slabfiles'][energy_per_atom.index(min_energy)]
+                print(min_energy_surface, min_energy, file=f)
+                info['min_energy_surface'] = min_energy_surface
+        return self.slabs_info_dict
+    
+    def save_best_surface_images(self):
+        path_to_images = os.path.join(self.path_to_slabs, 'images')
+        if not os.path.exists(path_to_images):
+            os.makedirs(path_to_images)
+        for miller, info in self.slabs_info_dict.items():
+            best_surface = read(os.path.join(self.path_to_slabs, info['min_energy_surface']))
+            write(os.path.join(path_to_images, info['min_energy_surface'].split('.')[0] + '.png'), best_surface, rotation='10z,-80x')
+
+    
     
     
