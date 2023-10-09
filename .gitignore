@@ -188,5 +188,8 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-# Test files and directories
+# Test directories
 test*/
+
+# oc22_metadata pickle
+oc22_metadata.pkl

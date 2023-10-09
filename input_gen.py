@@ -133,17 +133,23 @@ class OCPInputGenerator():
 
 
     def get_best_slabs_from_csv(self, path_to_best_slabs_csv, precom_slab_pkl):
-        best_surfaces_df = pd.read_csv(path_to_best_slabs_csv, delimiter=" ", header=None)
-        _best_surface_list = list(best_surfaces_df.sort_values(by=1).iloc[:,0])
-        best_surfaces_list = [surface.replace('traj', 'json') for surface in _best_surface_list]
-        best_slabs_dict = dict()
         slab_from_pkl = Slab.from_precomputed_slabs_pkl(bulk=self.ocp_bulk, precomputed_slabs_pkl=precom_slab_pkl)
         all_slabs_dict = dict()
         for slab in slab_from_pkl:
-            slabname = self._name_for_slab(slab=slab, adslab_num=None, adsorbate_suffix=None)
-            all_slabs_dict[slabname] = slab
-        for slab in best_surfaces_list:
-            best_slabs_dict[slab] = all_slabs_dict[slab]
+                slabname = self._name_for_slab(slab=slab, adslab_num=None, adsorbate_suffix=None)
+                all_slabs_dict[slabname] = slab
+
+        if path_to_best_slabs_csv is not None:
+            best_surfaces_df = pd.read_csv(path_to_best_slabs_csv, delimiter=" ", header=None)
+            _best_surface_list = list(best_surfaces_df.sort_values(by=1).iloc[:,0])
+            best_surfaces_list = [surface.replace('traj', 'json') for surface in _best_surface_list]
+            best_slabs_dict = dict()
+
+            for slab in best_surfaces_list:
+                best_slabs_dict[slab] = all_slabs_dict[slab]
+        else:
+            
+            best_slabs_dict = all_slabs_dict
         return best_slabs_dict
 
     def create_specific_adslabs(self, path_to_best_slabs_csv, precom_slab_pkl):
