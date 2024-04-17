@@ -19,9 +19,9 @@ class OCPInputGenerator():
                                'd_OH': {"suffix": "OH",
                                        "binding_index":[0],
                                         }, 
-                               'm_CO': {"suffix": "CO",
-                                       "binding_index":[0],
-                                        },
+                            #    'm_CO': {"suffix": "CO",
+                            #            "binding_index":[0],
+                            #             },
                                'd_OCH3':{"suffix": "OCH3",
                                        "binding_index":[4],
                                         },
@@ -29,13 +29,13 @@ class OCPInputGenerator():
                                        "binding_index":[1],
                                         }
                                }
-        if not self.is_metal:
-            self.adsorbates_info['d_CH3O'] = {"suffix": "CH3O",
-                                              "binding_index": [0]
-                                            }
-            self.adsorbates_info['d_CHO2'] = {"suffix": "CHO2",
-                                            "binding_index": [0] 
-                                            }
+        # if not self.is_metal:
+        #     self.adsorbates_info['d_CH3O'] = {"suffix": "CH3O",
+        #                                       "binding_index": [0]
+        #                                     }
+        #     self.adsorbates_info['d_CHO2'] = {"suffix": "CHO2",
+        #                                     "binding_index": [0] 
+        #                                     }
         if self.save_path == None:
             self.save_path = os.path.join(os.getcwd(), bulk_material_id)
             os.makedirs(self.save_path, exist_ok=True)
@@ -81,7 +81,7 @@ class OCPInputGenerator():
             
     def create_ocp_slabs_from_bulk(self):
         slabs = Slab.from_bulk_get_all_slabs(bulk=self.ocp_bulk)
-        only_slabs_pickle = os.path.join(self.save_path, 'slabs.pkl')
+        only_slabs_pickle = os.path.join(self.save_path, 'all_slabs.pkl')
         with open(only_slabs_pickle, 'wb') as f:
             pickle.dump(slabs, f)
         return slabs
@@ -99,7 +99,7 @@ class OCPInputGenerator():
             return slab_filename  
         else:
                     
-            adslab_filename = "{}_{}_{}_{}_{}_{}.json".format(self.bulk_material_id,
+            adslab_filename = "{}_{}_{}_{}-{}_{}.json".format(self.bulk_material_id,
                                                 miller_str,
                                                 inverted,
                                                 shift, 
@@ -133,15 +133,20 @@ class OCPInputGenerator():
 
 
     def get_best_slabs_from_csv(self, path_to_best_slabs_csv, precom_slab_pkl):
-        slab_from_pkl = Slab.from_precomputed_slabs_pkl(bulk=self.ocp_bulk, precomputed_slabs_pkl=precom_slab_pkl)
+        if precom_slab_pkl is not None:
+            slab_from_pkl = Slab.from_precomputed_slabs_pkl(bulk=self.ocp_bulk, precomputed_slabs_pkl=precom_slab_pkl) 
+        else:
+            slab_from_pkl = Slab.from_bulk_get_all_slabs(bulk=self.ocp_bulk)
         all_slabs_dict = dict()
         for slab in slab_from_pkl:
                 slabname = self._name_for_slab(slab=slab, adslab_num=None, adsorbate_suffix=None)
                 all_slabs_dict[slabname] = slab
-
+        print(all_slabs_dict)
         if path_to_best_slabs_csv is not None:
             best_surfaces_df = pd.read_csv(path_to_best_slabs_csv, delimiter=" ", header=None)
-            _best_surface_list = list(best_surfaces_df.sort_values(by=1).iloc[:,0])
+            best_surfaces_df.iloc[:, 0] = best_surfaces_df.iloc[:, 0].apply(lambda x: x + '.json')
+            # _best_surface_list = list(best_surfaces_df.sort_values(by=1).iloc[:,0])
+            _best_surface_list = list(best_surfaces_df.iloc[:,0])
             best_surfaces_list = [surface.replace('traj', 'json') for surface in _best_surface_list]
             best_slabs_dict = dict()
 
@@ -152,9 +157,10 @@ class OCPInputGenerator():
             best_slabs_dict = all_slabs_dict
         return best_slabs_dict
 
-    def create_specific_adslabs(self, path_to_best_slabs_csv, precom_slab_pkl):
+    def create_specific_adslabs(self, precom_slab_pkl, path_to_best_slabs_csv=None):
         self.update_adsorbates_info()
         best_slabs_dict = self.get_best_slabs_from_csv(path_to_best_slabs_csv, precom_slab_pkl)
+        print(best_slabs_dict)
         all_adslabs = dict()
         for slabname, slab in best_slabs_dict.items():
              for adsorbate_id, adsorbate in self.adsorbates_info.items():
